@@ -16,6 +16,8 @@ export async function generateAIResponse(userMessage, context = '') {
       return await generateGeminiResponse(userMessage, context);
     } else if (config.aiProvider === 'ollama') {
       return await generateOllamaResponse(userMessage, context);
+    } else if (config.aiProvider === 'custom') {
+      return await generateCustomApiResponse(userMessage, context);
     }
     throw new Error(`Unknown AI provider: ${config.aiProvider}`);
   } catch (error) {
@@ -59,6 +61,76 @@ async function generateOllamaResponse(userMessage, context) {
   return {
     text: data.response,
     actions: parseActions(data.response)
+  };
+}
+
+async function generateCustomApiResponse(userMessage, context) {
+  if (!config.customApiBaseUrl || !config.customApiToken) {
+    throw new Error('Custom API not configured');
+  }
+
+  const fullPrompt = buildPrompt(userMessage, context);
+
+  // Try OpenAI-compatible format first
+  let apiResponse;
+
+  try {
+    apiResponse = await fetch(`${config.customApiBaseUrl}/v1/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${config.customApiToken}`
+      },
+      body: JSON.stringify({
+        model: config.customApiModel,
+        messages: [
+          { role: 'system', content: config.systemPrompt },
+          { role: 'user', content: context ? `${context}\n\nUser: ${userMessage}` : userMessage }
+        ],
+        temperature: 0.7,
+        max_tokens: 2048
+      })
+    });
+  } catch {
+    // Fallback to direct format
+    apiResponse = await fetch(config.customApiBaseUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${config.customApiToken}`
+      },
+      body: JSON.stringify({
+        model: config.customApiModel,
+        messages: [
+          { role: 'system', content: config.systemPrompt },
+          { role: 'user', content: context ? `${context}\n\nUser: ${userMessage}` : userMessage }
+        ]
+      })
+    });
+  }
+
+  if (!apiResponse.ok) {
+    const errorText = await apiResponse.text();
+    throw new Error(`Custom API error ${apiResponse.status}: ${errorText}`);
+  }
+
+  const data = await apiResponse.json();
+
+  // OpenAI-compatible response
+  let text;
+  if (data.choices && data.choices[0]?.message?.content) {
+    text = data.choices[0].message.content;
+  } else if (data.response) {
+    text = data.response;
+  } else if (data.text) {
+    text = data.text;
+  } else {
+    text = JSON.stringify(data);
+  }
+
+  return {
+    text,
+    actions: parseActions(text)
   };
 }
 
@@ -120,6 +192,14 @@ export async function checkAIConnection() {
       if (response.ok) {
         const data = await response.json();
         return { status: 'ok', provider: 'ollama', models: data.models?.map(m => m.name) };
+      }
+    } else if (config.aiProvider === 'custom') {
+      // Test custom API
+      const response = await fetch(`${config.customApiBaseUrl}/v1/models`, {
+        headers: { 'Authorization': `Bearer ${config.customApiToken}` }
+      });
+      if (response.ok) {
+        return { status: 'ok', provider: 'custom', baseUrl: config.customApiBaseUrl, model: config.customApiModel };
       }
     }
     return { status: 'error', message: 'Unknown provider' };

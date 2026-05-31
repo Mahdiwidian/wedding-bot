@@ -14,6 +14,11 @@ export const config = {
   ollamaBaseUrl: process.env.OLLAMA_BASE_URL || 'http://localhost:11434',
   ollamaModel: process.env.OLLAMA_MODEL || 'llama3',
 
+  // Custom API (Anthropic-compatible or OpenAI-compatible)
+  customApiBaseUrl: process.env.CUSTOM_API_BASE_URL || '',
+  customApiToken: process.env.CUSTOM_API_TOKEN || '',
+  customApiModel: process.env.CUSTOM_API_MODEL || 'common',
+
   // Server
   port: parseInt(process.env.PORT) || 3000,
   baseUrl: process.env.BASE_URL || 'http://localhost:3000',

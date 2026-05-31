@@ -31,7 +31,8 @@ export class CommandHandler {
       '/query': () => this.cmdQuery(remoteJid, args),
       '/final-md': () => this.cmdFinalMd(remoteJid, args),
       '/final-wa': () => this.cmdFinalWa(remoteJid, args),
-      '/final-xl': () => this.cmdFinalXl(remoteJid, args)
+      '/final-xl': () => this.cmdFinalXl(remoteJid, args),
+      '/ai': () => this.cmdAI(remoteJid, args.join(' '))
     };
 
     const handler = handlers[command.toLowerCase()];
@@ -43,15 +44,32 @@ export class CommandHandler {
   }
 
   async handleMessage(remoteJid, text) {
+    // Check if this is a group chat (ends with @g.us)
+    const isGroup = remoteJid?.endsWith('@g.us');
+
     // Check for command prefix
     if (text.startsWith('/')) {
       const parts = text.slice(1).split(' ');
-      const command = '/' + parts[0];
+      const command = '/' + parts[0].toLowerCase();
       const args = parts.slice(1);
+
+      // In groups: only respond to /ai command and other bot commands
+      if (isGroup && command !== '/ai') {
+        const botCommands = ['/start', '/help', '/menu', '/status', '/export', '/output', '/list', '/query', '/final-md', '/final-wa', '/final-xl'];
+        if (!botCommands.includes(command)) {
+          return; // Ignore unknown commands in groups
+        }
+      }
+
       return this.handleCommand(remoteJid, command, args);
     }
 
-    // Otherwise, process as AI message
+    // In groups: ignore non-command messages (only /ai triggers AI)
+    if (isGroup) {
+      return;
+    }
+
+    // Private chat: process all messages as AI
     return this.cmdAI(remoteJid, text);
   }
 
