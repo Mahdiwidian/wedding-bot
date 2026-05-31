@@ -1,0 +1,78 @@
+{
+  "name": "Wedding Planner Default",
+  "version": "1.0",
+  "sheets": [
+    {
+      "name": "Guests",
+      "dataKey": "guests",
+      "fields": [
+        { "header": "Nama", "key": "name", "width": 25 },
+        { "header": "No. Telepon", "key": "phone", "width": 15 },
+        { "header": "Email", "key": "email", "width": 30 },
+        { "header": "Alamat", "key": "address", "width": 35 },
+        { "header": "RSVP", "key": "rsvp", "width": 10 },
+        { "header": "Jumlah Tamu", "key": "guestCount", "width": 12 },
+        { "header": "Kategori", "key": "category", "width": 15 },
+        { "header": "Keterangan", "key": "notes", "width": 30 }
+      ]
+    },
+    {
+      "name": "Vendors",
+      "dataKey": "vendors",
+      "fields": [
+        { "header": "Nama Vendor", "key": "name", "width": 25 },
+        { "header": "Kategori", "key": "category", "width": 15 },
+        { "header": "Kontak", "key": "contact", "width": 20 },
+        { "header": "Telepon", "key": "phone", "width": 15 },
+        { "header": "Email", "key": "email", "width": 30 },
+        { "header": "Harga", "key": "price", "width": 15, "type": "currency" },
+        { "header": "Status", "key": "status", "width": 12 },
+        { "header": "Catatan", "key": "notes", "width": 40 }
+      ]
+    },
+    {
+      "name": "Budget",
+      "dataKey": "budget",
+      "fields": [
+        { "header": "Kategori", "key": "category", "width": 20 },
+        { "header": "Deskripsi", "key": "description", "width": 35 },
+        { "header": "Estimasi", "key": "estimated", "width": 15, "type": "currency" },
+        { "header": "Realisasi", "key": "actual", "width": 15, "type": "currency" },
+        { "header": "Vendor", "key": "vendor", "width": 25 },
+        { "header": "Status", "key": "status", "width": 12 }
+      ]
+    },
+    {
+      "name": "Checklist",
+      "dataKey": "checklist",
+      "fields": [
+        { "header": "Tugas", "key": "task", "width": 40 },
+        { "header": "Kategori", "key": "category", "width": 15 },
+        { "header": "Due Date", "key": "dueDate", "width": 15, "type": "date" },
+        { "header": "Status", "key": "status", "width": 12 },
+        { "header": "Prioritas", "key": "priority", "width": 12 },
+        { "header": "Keterangan", "key": "notes", "width": 35 }
+      ]
+    },
+    {
+      "name": "Timeline",
+      "dataKey": "timeline",
+      "fields": [
+        { "header": "Tanggal", "key": "date", "width": 15 },
+        { "header": "Waktu", "key": "time", "width": 12 },
+        { "header": "Acara", "key": "event", "width": 30 },
+        { "header": "Lokasi", "key": "location", "width": 30 },
+        { "header": "Penanggung Jawab", "key": "responsible", "width": 20 },
+        { "header": "Status", "key": "status", "width": 12 }
+      ]
+    },
+    {
+      "name": "Notes",
+      "dataKey": "notes",
+      "fields": [
+        { "header": "Catatan", "key": "text", "width": 60 },
+        { "header": "Tanggal", "key": "createdAt", "width": 20, "type": "date" }
+      ]
+    }
+  ]
+}
