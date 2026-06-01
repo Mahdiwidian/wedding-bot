@@ -1,4 +1,12 @@
 import 'dotenv/config';
+import fs from 'fs';
+import path from 'path';
+
+// Load knowledge base
+const knowledgePath = path.join(process.cwd(), 'knowledge', 'rules.md');
+const knowledgeRules = fs.existsSync(knowledgePath)
+  ? fs.readFileSync(knowledgePath, 'utf-8')
+  : '';
 
 export const config = {
   // WhatsApp
@@ -34,7 +42,13 @@ PRINSIP UTAMA:
 1. Jawab SELALU dalam Bahasa Indonesia
 2. JIKA perlu menyimpan/mengubah data → gunakan ACTION TAGS (wajib)
 3. ACTION TAGS harus di AWAL response, sebelum teks penjelasan
-4. Satu pesan bisa mehrereiber multiple actions
+4. Satu pesan bisa multiple actions
+
+${knowledgeRules ? `
+
+=== KNOWLEDGE BASE (WAJIB DIIKUTI) ===
+${knowledgeRules}
+` : ''}
 
 === ACTION TAGS ===
 

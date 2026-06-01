@@ -269,6 +269,72 @@ router.get('/export', async (req, res) => {
 
 // ==================== AI ====================
 
+// Helper to execute AI actions (same logic as bot/commands.js)
+async function executeAIAction(action) {
+  try {
+    switch (action.type.toUpperCase()) {
+      case 'ADD_FIELD':
+        await db.addField({
+          name: action.data[0]?.trim(),
+          type: action.data[1]?.trim() || 'text',
+          label: action.data[2]?.trim(),
+          category: action.data[3]?.trim() || 'general',
+          options: action.data[4]?.trim() || null,
+          required: action.data[5] === 'true'
+        });
+        break;
+
+      case 'ADD_DATA':
+        const [cat1, jsonStr] = action.data;
+        const data = JSON.parse(jsonStr);
+        await db.addData(cat1?.trim(), data);
+        break;
+
+      case 'ADD_NOTE':
+        const [noteName, noteDate, noteJson] = action.data;
+        let noteData = {};
+        try {
+          noteData = JSON.parse(noteJson);
+        } catch {
+          noteData = { content: noteJson };
+        }
+        await db.addNote({
+          name: noteName,
+          date: noteDate || new Date().toISOString().split('T')[0],
+          data: noteData
+        });
+        break;
+
+      case 'SAVE_TEMPLATE':
+        const [tmplName, tmplType, tmplJson] = action.data;
+        const tmplData = JSON.parse(tmplJson);
+        await db.saveTemplate({
+          name: tmplName,
+          type: tmplType === 'excel' ? 'xl' : tmplType,
+          data: tmplData
+        });
+        break;
+
+      case 'UPDATE_NOTE':
+        const [noteId, updJson] = action.data;
+        await db.updateNote(noteId, JSON.parse(updJson));
+        break;
+
+      case 'DELETE_NOTE':
+        await db.deleteNote(action.data[0]);
+        break;
+
+      case 'DELETE_DATA':
+        await db.deleteData(action.data[0]);
+        break;
+    }
+    return true;
+  } catch (error) {
+    console.error('Execute action error:', error);
+    return false;
+  }
+}
+
 router.post('/ai/chat', async (req, res) => {
   try {
     const { message, context } = req.body;
@@ -279,7 +345,20 @@ router.post('/ai/chat', async (req, res) => {
     // Build context from database
     const dbContext = await buildAIContext(db, context);
     const response = await generateAIResponse(message, dbContext);
-    res.json(response);
+
+    // Execute actions automatically
+    const executedActions = [];
+    if (response.actions && response.actions.length > 0) {
+      for (const action of response.actions) {
+        const success = await executeAIAction(action);
+        executedActions.push({ action: action.type, success });
+      }
+    }
+
+    res.json({
+      ...response,
+      executedActions
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
