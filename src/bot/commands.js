@@ -650,11 +650,25 @@ ${categoryList}`;
     if (results.SEARCH_NOTES || results.GET_NOTES || results.GET_NOTE) {
       const notes = results.GET_NOTE ? [results.GET_NOTE] : (results.SEARCH_NOTES || results.GET_NOTES || []);
       if (notes.length > 0) {
-        output += '\n\n📝 *Hasil Note:*\n';
         for (const note of notes) {
           if (!note) continue;
-          const content = note.data?.content || note.data || '';
-          output += `\n*${note.name}*\n${content}\n`;
+          // Parse data - could be string JSON or object
+          let content = '';
+          if (typeof note.data === 'string') {
+            try {
+              const parsed = JSON.parse(note.data);
+              content = parsed.content || parsed;
+            } catch {
+              content = note.data;
+            }
+          } else if (typeof note.data === 'object') {
+            content = note.data.content || JSON.stringify(note.data);
+          } else {
+            content = String(note.data);
+          }
+          // Replace \n with actual newlines
+          content = content.replace(/\\n/g, '\n');
+          output += `\n📝 *${note.name}*\n${content}\n`;
         }
       } else {
         output += '\n\n📝 *Tidak ada note ditemukan*';

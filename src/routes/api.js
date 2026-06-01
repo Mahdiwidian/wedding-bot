@@ -417,13 +417,29 @@ router.post('/ai/chat', async (req, res) => {
 function formatActionResults(results) {
   let output = '';
 
-  if (results.SEARCH_NOTES || results.GET_NOTES) {
-    const notes = results.SEARCH_NOTES || results.GET_NOTES || [];
+  if (results.SEARCH_NOTES || results.GET_NOTES || results.GET_NOTE) {
+    const notes = results.GET_NOTE ? [results.GET_NOTE] : (results.SEARCH_NOTES || results.GET_NOTES || []);
     if (notes.length > 0) {
       output += '\n📝 **Hasil Note:**\n';
       for (const note of notes) {
-        const content = note.data?.content || note.data || '';
-        output += `\n*${note.name}*\n${content.substring(0, 500)}${content.length > 500 ? '...' : ''}\n`;
+        if (!note) continue;
+        // Parse data - could be string JSON or object
+        let content = '';
+        if (typeof note.data === 'string') {
+          try {
+            const parsed = JSON.parse(note.data);
+            content = parsed.content || parsed;
+          } catch {
+            content = note.data;
+          }
+        } else if (typeof note.data === 'object') {
+          content = note.data.content || JSON.stringify(note.data);
+        } else {
+          content = String(note.data);
+        }
+        // Replace \n with actual newlines
+        content = content.replace(/\\n/g, '\n');
+        output += `\n*${note.name}*\n${content.substring(0, 2000)}${content.length > 2000 ? '...' : ''}\n`;
       }
     } else {
       output += '\n📝 *Tidak ada note ditemukan*';
@@ -447,7 +463,20 @@ function formatActionResults(results) {
   if (results.GET_NOTE) {
     const note = results.GET_NOTE;
     if (note) {
-      const content = note.data?.content || note.data || '';
+      let content = '';
+      if (typeof note.data === 'string') {
+        try {
+          const parsed = JSON.parse(note.data);
+          content = parsed.content || parsed;
+        } catch {
+          content = note.data;
+        }
+      } else if (typeof note.data === 'object') {
+        content = note.data.content || JSON.stringify(note.data);
+      } else {
+        content = String(note.data);
+      }
+      content = content.replace(/\\n/g, '\n');
       output += `\n📝 **${note.name}**\n${content}`;
     }
   }
