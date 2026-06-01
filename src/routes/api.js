@@ -269,8 +269,9 @@ router.get('/export', async (req, res) => {
 
 // ==================== AI ====================
 
-// Helper to execute AI actions (same logic as bot/commands.js)
+// Helper to execute AI actions and return results
 async function executeAIAction(action) {
+  let result = null;
   try {
     switch (action.type.toUpperCase()) {
       case 'ADD_FIELD':
@@ -282,13 +283,13 @@ async function executeAIAction(action) {
           options: action.data[4]?.trim() || null,
           required: action.data[5] === 'true'
         });
-        break;
+        return { success: true, result: null };
 
       case 'ADD_DATA':
         const [cat1, jsonStr] = action.data;
         const data = JSON.parse(jsonStr);
         await db.addData(cat1?.trim(), data);
-        break;
+        return { success: true, result: null };
 
       case 'ADD_NOTE':
         let [noteName, noteDate, noteJson] = action.data;
@@ -313,7 +314,26 @@ async function executeAIAction(action) {
           date: noteDate || new Date().toISOString().split('T')[0],
           data: noteData
         });
-        break;
+        return { success: true, result: null };
+
+      case 'GET_NOTE':
+        const noteNameToGet = action.data[0];
+        const note = await db.getNote(noteNameToGet);
+        return { success: true, result: note };
+
+      case 'GET_NOTES':
+        const notes = await db.getNotes(100);
+        return { success: true, result: notes };
+
+      case 'SEARCH_NOTES':
+        const query = action.data[0];
+        const searchResults = await db.searchNotes(query);
+        return { success: true, result: searchResults };
+
+      case 'QUERY':
+        const [qCat, qLimit] = action.data;
+        const queryResults = await db.getLatestData(qCat?.trim(), parseInt(qLimit) || 50);
+        return { success: true, result: queryResults };
 
       case 'SAVE_TEMPLATE':
         const [tmplName, tmplType, tmplJson] = action.data;
@@ -323,25 +343,27 @@ async function executeAIAction(action) {
           type: tmplType === 'excel' ? 'xl' : tmplType,
           data: tmplData
         });
-        break;
+        return { success: true, result: null };
 
       case 'UPDATE_NOTE':
         const [noteId, updJson] = action.data;
         await db.updateNote(noteId, JSON.parse(updJson));
-        break;
+        return { success: true, result: null };
 
       case 'DELETE_NOTE':
         await db.deleteNote(action.data[0]);
-        break;
+        return { success: true, result: null };
 
       case 'DELETE_DATA':
         await db.deleteData(action.data[0]);
-        break;
+        return { success: true, result: null };
+
+      default:
+        return { success: false, result: null, error: 'Unknown action' };
     }
-    return true;
   } catch (error) {
     console.error('Execute action error:', error);
-    return false;
+    return { success: false, error: error.message };
   }
 }
 
@@ -356,23 +378,82 @@ router.post('/ai/chat', async (req, res) => {
     const dbContext = await buildAIContext(db, context);
     const response = await generateAIResponse(message, dbContext);
 
-    // Execute actions automatically
+    // Execute actions automatically and collect results
     const executedActions = [];
+    let actionResults = {};
+
     if (response.actions && response.actions.length > 0) {
       for (const action of response.actions) {
-        const success = await executeAIAction(action);
-        executedActions.push({ action: action.type, success });
+        const result = await executeAIAction(action);
+        executedActions.push({ action: action.type, ...result });
+
+        // Store results for query actions
+        if (result.result !== null) {
+          actionResults[action.type] = result.result;
+        }
       }
     }
 
+    // If there are query results, format them for display
+    let formattedResponse = response.text;
+    if (Object.keys(actionResults).length > 0) {
+      // Add results context to AI response
+      const resultsContext = formatActionResults(actionResults);
+      formattedResponse = response.text + '\n\n' + resultsContext;
+    }
+
     res.json({
-      ...response,
-      executedActions
+      text: formattedResponse,
+      actions: response.actions,
+      executedActions,
+      actionResults
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
+
+// Format action results for display
+function formatActionResults(results) {
+  let output = '';
+
+  if (results.SEARCH_NOTES || results.GET_NOTES) {
+    const notes = results.SEARCH_NOTES || results.GET_NOTES || [];
+    if (notes.length > 0) {
+      output += '\n📝 **Hasil Note:**\n';
+      for (const note of notes) {
+        const content = note.data?.content || note.data || '';
+        output += `\n*${note.name}*\n${content.substring(0, 500)}${content.length > 500 ? '...' : ''}\n`;
+      }
+    } else {
+      output += '\n📝 *Tidak ada note ditemukan*';
+    }
+  }
+
+  if (results.QUERY) {
+    const data = results.QUERY;
+    if (data.length > 0) {
+      output += '\n📊 **Hasil Query:**\n';
+      for (const item of data.slice(0, 10)) {
+        const name = item.data?.name || item.data?.task || item.id;
+        output += `- ${name}\n`;
+      }
+      if (data.length > 10) {
+        output += `- ... dan ${data.length - 10} lagi\n`;
+      }
+    }
+  }
+
+  if (results.GET_NOTE) {
+    const note = results.GET_NOTE;
+    if (note) {
+      const content = note.data?.content || note.data || '';
+      output += `\n📝 **${note.name}**\n${content}`;
+    }
+  }
+
+  return output;
+}
 
 router.get('/ai/status', async (req, res) => {
   try {
