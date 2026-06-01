@@ -678,14 +678,32 @@ ${categoryList}`;
     if (results.QUERY) {
       const data = results.QUERY;
       if (data.length > 0) {
-        output += '\n\n📊 *Hasil Query:*\n';
-        for (const item of data.slice(0, 10)) {
-          const name = item.data?.name || item.data?.task || item.id;
-          output += `- ${name}\n`;
+        output += '\n\n📋 *Checklist:*\n';
+        for (const item of data.slice(0, 20)) {
+          // Parse item.data if it's a string
+          let itemData = item.data;
+          if (typeof itemData === 'string') {
+            try {
+              itemData = JSON.parse(itemData);
+            } catch {
+              itemData = {};
+            }
+          }
+          const task = itemData?.task || itemData?.name || itemData?.description || item.id;
+          const status = itemData?.status || '';
+          const deadline = itemData?.deadline || '';
+          const cat = itemData?.category || '';
+          const statusIcon = status === 'done' ? '✅' : status === 'in_progress' ? '🔄' : '⬜';
+          output += `${statusIcon} ${task}`;
+          if (deadline) output += ` (${deadline})`;
+          if (cat) output += ` [${cat}]`;
+          output += '\n';
         }
-        if (data.length > 10) {
-          output += `- ... dan ${data.length - 10} lagi\n`;
+        if (data.length > 20) {
+          output += `\n... dan ${data.length - 20} item lagi\n`;
         }
+      } else {
+        output += '\n\n📋 *Tidak ada checklist ditemukan*';
       }
     }
 
