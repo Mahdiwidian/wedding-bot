@@ -323,15 +323,28 @@ ${categoryList}`;
         }
 
         case 'ADD_NOTE': {
-          const [name, date, jsonStr] = action.data;
-          let data = {};
-          try {
-            data = JSON.parse(jsonStr);
-          } catch {
-            data = { content: action.data.slice(2).join(' ') };
+          let [noteName, noteDate, noteJson] = action.data;
+          // If second param is "note" (category), shift params
+          if (noteDate === 'note' || noteDate === 'notes') {
+            noteDate = null;
           }
-          await db.addNote({ name, date, data });
-          logger.info('Note added:', name);
+          // If second param looks like JSON, it might be the data
+          if (noteDate && noteDate.startsWith('{')) {
+            noteJson = noteDate;
+            noteDate = null;
+          }
+          let noteData = {};
+          try {
+            noteData = JSON.parse(noteJson);
+          } catch {
+            noteData = { content: noteJson || '' };
+          }
+          await db.addNote({
+            name: noteName,
+            date: noteDate || new Date().toISOString().split('T')[0],
+            data: noteData
+          });
+          logger.info('Note added:', noteName);
           break;
         }
 

@@ -291,12 +291,22 @@ async function executeAIAction(action) {
         break;
 
       case 'ADD_NOTE':
-        const [noteName, noteDate, noteJson] = action.data;
+        let [noteName, noteDate, noteJson] = action.data;
+        // If second param is "note" (category), shift params
+        if (noteDate === 'note' || noteDate === 'notes') {
+          noteDate = null;
+        }
+        // If second param looks like JSON, it might be the data
+        if (noteDate && noteDate.startsWith('{')) {
+          noteJson = noteDate;
+          noteDate = null;
+        }
         let noteData = {};
         try {
+          noteJson = noteJson || noteDate;
           noteData = JSON.parse(noteJson);
         } catch {
-          noteData = { content: noteJson };
+          noteData = { content: noteJson || noteDate || '' };
         }
         await db.addNote({
           name: noteName,
