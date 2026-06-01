@@ -256,15 +256,25 @@ ${categoryList}`;
     const context = await buildAIContext(db);
     const response = await generateAIResponse(text, context);
 
-    // Process actions from AI
+    // Process actions from AI and collect results
+    const actionResults = {};
     if (response.actions && response.actions.length > 0) {
       for (const action of response.actions) {
-        await this.executeAIAction(jid, action);
+        const result = await this.executeAIAction(jid, action);
+        if (result) {
+          actionResults[action.type] = result;
+        }
       }
     }
 
     // Clean action tags from response for display
-    const displayText = cleanActionTags(response.text);
+    let displayText = cleanActionTags(response.text);
+
+    // Add formatted results if any
+    if (Object.keys(actionResults).length > 0) {
+      displayText += this.formatActionResults(actionResults);
+    }
+
     if (displayText) {
       return this.sendMessage(jid, displayText);
     }
@@ -367,7 +377,18 @@ ${categoryList}`;
           const [query] = action.data;
           const notes = await db.searchNotes(query);
           logger.info('Notes search:', query, 'results:', notes.length);
-          break;
+          return notes;
+        }
+
+        case 'GET_NOTE': {
+          const [noteName] = action.data;
+          const note = await db.getNote(noteName);
+          return note;
+        }
+
+        case 'GET_NOTES': {
+          const notes = await db.getNotes(100);
+          return notes;
         }
 
         case 'SAVE_TEMPLATE': {
@@ -389,8 +410,7 @@ ${categoryList}`;
           const [category, limit] = action.data;
           const data = await db.getLatestData(category?.trim(), parseInt(limit) || 50);
           logger.info('Query executed:', category, 'results:', data.length);
-          // Results will be included in AI response context
-          break;
+          return data;
         }
 
         default:
@@ -622,5 +642,39 @@ ${categoryList}`;
   capitalizeFirst(str) {
     if (!str) return '';
     return str.charAt(0).toUpperCase() + str.slice(1).replace(/_/g, ' ');
+  }
+
+  formatActionResults(results) {
+    let output = '';
+
+    if (results.SEARCH_NOTES || results.GET_NOTES || results.GET_NOTE) {
+      const notes = results.GET_NOTE ? [results.GET_NOTE] : (results.SEARCH_NOTES || results.GET_NOTES || []);
+      if (notes.length > 0) {
+        output += '\n\n📝 *Hasil Note:*\n';
+        for (const note of notes) {
+          if (!note) continue;
+          const content = note.data?.content || note.data || '';
+          output += `\n*${note.name}*\n${content}\n`;
+        }
+      } else {
+        output += '\n\n📝 *Tidak ada note ditemukan*';
+      }
+    }
+
+    if (results.QUERY) {
+      const data = results.QUERY;
+      if (data.length > 0) {
+        output += '\n\n📊 *Hasil Query:*\n';
+        for (const item of data.slice(0, 10)) {
+          const name = item.data?.name || item.data?.task || item.id;
+          output += `- ${name}\n`;
+        }
+        if (data.length > 10) {
+          output += `- ... dan ${data.length - 10} lagi\n`;
+        }
+      }
+    }
+
+    return output;
   }
 }
